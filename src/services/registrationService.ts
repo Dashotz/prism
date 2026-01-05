@@ -38,32 +38,30 @@ export const registrationService = {
    */
   async createRegistration(data: RegistrationData): Promise<RegistrationResponse> {
     try {
-      console.log('Creating registration with data:', data);
+      // Input validation and sanitization
+      const sanitizedData = {
+        firstName: data.firstName.trim().slice(0, 100),
+        lastName: data.lastName.trim().slice(0, 100),
+        mobileNumber: data.mobileNumber.trim().slice(0, 20),
+        email: data.email.trim().toLowerCase().slice(0, 255),
+        company: data.company.trim().slice(0, 200),
+        position: data.position.trim().slice(0, 200),
+      };
       
       const { data: result, error } = await supabase
         .from('registrations')
         .insert({
-          first_name: data.firstName,
-          last_name: data.lastName,
-          mobile_number: data.mobileNumber,
-          email: data.email,
-          company: data.company,
-          position: data.position,
+          first_name: sanitizedData.firstName,
+          last_name: sanitizedData.lastName,
+          mobile_number: sanitizedData.mobileNumber,
+          email: sanitizedData.email,
+          company: sanitizedData.company,
+          position: sanitizedData.position,
         })
         .select()
         .single();
 
-      console.log('Supabase response - data:', result);
-      console.log('Supabase response - error:', error);
-
       if (error) {
-        console.error('Supabase error details:', {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-        });
-        
         // Handle duplicate email error
         if (error.code === '23505') {
           return {
@@ -72,47 +70,28 @@ export const registrationService = {
           };
         }
         
-        // Handle missing table error
-        if (error.code === '42P01' || error.message?.includes('does not exist')) {
-          return {
-            success: false,
-            error: 'Database table not found. Please create the "registrations" table in Supabase.',
-          };
-        }
-        
-        // Handle RLS (Row Level Security) error
-        if (error.code === '42501' || error.message?.includes('permission denied')) {
-          return {
-            success: false,
-            error: 'Permission denied. Please check your Supabase Row Level Security policies.',
-          };
-        }
-        
+        // Generic error message to avoid exposing internal details
         return {
           success: false,
-          error: error.message || 'Failed to submit registration',
+          error: 'Failed to submit registration. Please try again.',
         };
       }
 
       if (!result) {
-        console.warn('No data returned from Supabase insert');
         return {
           success: false,
           error: 'Registration submitted but no confirmation received',
         };
       }
 
-      console.log('Registration successful:', result);
       return {
         success: true,
         data: result,
       };
-    } catch (error: unknown) {
-      console.error('Registration service error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to submit registration';
+    } catch {
       return {
         success: false,
-        error: errorMessage,
+        error: 'Failed to submit registration. Please try again.',
       };
     }
   },
@@ -122,10 +101,13 @@ export const registrationService = {
    */
   async getRegistrationByEmail(email: string): Promise<RegistrationResponse> {
     try {
+      // Sanitize email input
+      const sanitizedEmail = email.trim().toLowerCase().slice(0, 255);
+      
       const { data, error } = await supabase
         .from('registrations')
         .select('*')
-        .eq('email', email)
+        .eq('email', sanitizedEmail)
         .single();
 
       if (error) {
@@ -133,19 +115,19 @@ export const registrationService = {
           // No rows returned
           return {
             success: false,
-            error: 'Email not found. Please check your email address.',
+            error: 'Email not found. Please register first.',
           };
         }
         return {
           success: false,
-          error: error.message || 'Failed to fetch registration',
+          error: 'Failed to fetch registration. Please try again.',
         };
       }
 
       if (!data) {
         return {
           success: false,
-          error: 'Email not found. Please check your email address.',
+          error: 'Email not found. Please register first.',
         };
       }
 
@@ -153,12 +135,10 @@ export const registrationService = {
         success: true,
         data: data as Registration,
       };
-    } catch (error: unknown) {
-      console.error('Fetch by email error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch registration';
+    } catch {
       return {
         success: false,
-        error: errorMessage,
+        error: 'Failed to fetch registration. Please try again.',
       };
     }
   },
@@ -176,7 +156,7 @@ export const registrationService = {
       if (error) {
         return {
           success: false,
-          error: error.message || 'Failed to fetch registrations',
+          error: 'Failed to fetch registrations. Please try again.',
         };
       }
 
@@ -184,12 +164,10 @@ export const registrationService = {
         success: true,
         data: data as Registration[],
       };
-    } catch (error: unknown) {
-      console.error('Fetch error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch registrations';
+    } catch {
       return {
         success: false,
-        error: errorMessage,
+        error: 'Failed to fetch registrations. Please try again.',
       };
     }
   },

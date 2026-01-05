@@ -46,6 +46,15 @@
               outlined
               dark
               class="form-input"
+              :rules="[(val) => {
+                const strVal = String(val || '').trim();
+                if (!strVal) return 'This field is required';
+                const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
+                if (!emailRegex.test(strVal)) return 'Please enter a valid email address';
+                if (strVal.length > 255) return 'Email address is too long';
+                return true;
+              }]"
+              @update:model-value="(val) => formData.email = String(val || '').trim().toLowerCase().slice(0, 255)"
             />
             <q-input
               v-model="formData.company"
@@ -53,6 +62,8 @@
               outlined
               dark
               class="form-input"
+              :rules="[(val) => validateText(val, 'Company', 200)]"
+              @update:model-value="(val) => formData.company = sanitizeText(String(val || ''), 200)"
             />
             <q-input
               v-model="formData.position"
@@ -60,6 +71,8 @@
               outlined
               dark
               class="form-input"
+              :rules="[(val) => validateText(val, 'Position', 200)]"
+              @update:model-value="(val) => formData.position = sanitizeText(String(val || ''), 200)"
             />
           </div>
         </div>
@@ -128,6 +141,23 @@ const validateMobileNumber = (val: string): boolean | string => {
   return true;
 };
 
+const validateText = (val: string | number | null, fieldName: string, maxLength: number): boolean | string => {
+  const strVal = String(val || '').trim();
+  if (!strVal) return 'This field is required';
+  if (strVal.length > maxLength) return `${fieldName} must be less than ${maxLength} characters`;
+  // Allow letters, numbers, spaces, and common punctuation
+  const textRegex = /^[A-Za-z0-9\s.,\-'&()]+$/;
+  if (!textRegex.test(strVal)) {
+    return `${fieldName} contains invalid characters`;
+  }
+  return true;
+};
+
+const sanitizeText = (value: string, maxLength: number): string => {
+  // Remove potentially dangerous characters and limit length
+  return value.replace(/[<>"'`]/g, '').trim().slice(0, maxLength);
+};
+
 // Sanitization functions
 const handleNameInput = (field: 'firstName' | 'lastName', value: string | number | null) => {
   if (value === null || value === undefined) {
@@ -185,7 +215,6 @@ async function handleSubmit() {
       });
     }
 
-    console.log('Submitting registration:', formData.value);
     const result = await registrationService.createRegistration({
       firstName: formData.value.firstName,
       lastName: formData.value.lastName,
@@ -194,11 +223,6 @@ async function handleSubmit() {
       company: formData.value.company,
       position: formData.value.position,
     });
-
-    console.log('Registration result:', result);
-    console.log('Success:', result.success);
-    console.log('Data:', result.data);
-    console.log('Error:', result.error);
 
     if (result.success && result.data) {
       // Show success dialog with SweetAlert2
@@ -238,12 +262,10 @@ async function handleSubmit() {
         },
       });
     }
-  } catch (error: unknown) {
-    console.error('Submit error:', error);
-    const errorMessage = error instanceof Error ? error.message : 'An error occurred. Please try again later.';
+  } catch {
     await Swal.fire({
       title: 'Error',
-      text: errorMessage,
+      text: 'An error occurred. Please try again later.',
       icon: 'error',
       confirmButtonText: 'OK',
       confirmButtonColor: '#f44336',
