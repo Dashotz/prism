@@ -90,6 +90,7 @@
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useQuasar } from 'quasar';
+import Swal from 'sweetalert2';
 import EventBranding from 'components/EventBranding.vue';
 import { registrationService } from 'src/services/registrationService';
 
@@ -172,55 +173,91 @@ function goBack() {
 }
 
 async function handleSubmit() {
-  if (isFormValid.value) {
-    $q.loading.show({
-      message: 'Submitting registration...',
+  if (!isFormValid.value) {
+    return;
+  }
+
+  const loadingShown = $q && $q.loading;
+  try {
+    if (loadingShown) {
+      $q.loading.show({
+        message: 'Submitting registration...',
+      });
+    }
+
+    console.log('Submitting registration:', formData.value);
+    const result = await registrationService.createRegistration({
+      firstName: formData.value.firstName,
+      lastName: formData.value.lastName,
+      mobileNumber: formData.value.mobileNumber,
+      email: formData.value.email,
+      company: formData.value.company,
+      position: formData.value.position,
     });
 
-    try {
-      const result = await registrationService.createRegistration({
-        firstName: formData.value.firstName,
-        lastName: formData.value.lastName,
-        mobileNumber: formData.value.mobileNumber,
-        email: formData.value.email,
-        company: formData.value.company,
-        position: formData.value.position,
-      });
+    console.log('Registration result:', result);
+    console.log('Success:', result.success);
+    console.log('Data:', result.data);
+    console.log('Error:', result.error);
 
-      $q.loading.hide();
-
-      if (result.success) {
-        $q.notify({
-          type: 'positive',
-          message: 'Registration submitted successfully!',
-          position: 'top',
-        });
-        // Reset form
-        formData.value = {
-          firstName: '',
-          lastName: '',
-          mobileNumber: '',
-          email: '',
-          company: '',
-          position: '',
-        };
-        // Optionally redirect to a success page
-        // void router.push('/registration-success');
-      } else {
-        $q.notify({
-          type: 'negative',
-          message: result.error || 'Registration failed. Please try again.',
-          position: 'top',
-        });
-      }
-    } catch (error) {
-      $q.loading.hide();
-      $q.notify({
-        type: 'negative',
-        message: 'An error occurred. Please try again later.',
-        position: 'top',
+    if (result.success && result.data) {
+      // Show success dialog with SweetAlert2
+      await Swal.fire({
+        title: 'Registration Successful!',
+        html: '<div style="text-align: center;"><p style="font-size: 1.1rem; margin-bottom: 0.5rem; color: #e0e0e0;">Your registration has been submitted successfully!</p><p style="color: #888; font-size: 0.9rem;">You will be redirected to the homepage.</p></div>',
+        icon: 'success',
+        confirmButtonText: 'Continue to Homepage',
+        confirmButtonColor: '#4caf50',
+        background: '#1a1a1a',
+        color: '#ffffff',
+        allowOutsideClick: false,
+        allowEscapeKey: false,
+        customClass: {
+          popup: 'sweet-alert-dark',
+          title: 'sweet-alert-title',
+          confirmButton: 'sweet-alert-button',
+        },
       });
-      console.error('Submit error:', error);
+      // Redirect to homepage after user clicks OK
+      void router.push('/');
+    } else {
+      const errorMsg = result.error || 'Registration failed. Please try again.';
+      console.error('Registration failed:', errorMsg);
+      await Swal.fire({
+        title: 'Registration Failed',
+        text: errorMsg,
+        icon: 'error',
+        confirmButtonText: 'OK',
+        confirmButtonColor: '#f44336',
+        background: '#1a1a1a',
+        color: '#ffffff',
+        customClass: {
+          popup: 'sweet-alert-dark',
+          title: 'sweet-alert-title',
+          confirmButton: 'sweet-alert-button',
+        },
+      });
+    }
+  } catch (error: unknown) {
+    console.error('Submit error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An error occurred. Please try again later.';
+    await Swal.fire({
+      title: 'Error',
+      text: errorMessage,
+      icon: 'error',
+      confirmButtonText: 'OK',
+      confirmButtonColor: '#f44336',
+      background: '#1a1a1a',
+      color: '#ffffff',
+      customClass: {
+        popup: 'sweet-alert-dark',
+        title: 'sweet-alert-title',
+        confirmButton: 'sweet-alert-button',
+      },
+    });
+  } finally {
+    if (loadingShown && $q && $q.loading) {
+      $q.loading.hide();
     }
   }
 }
@@ -285,5 +322,39 @@ async function handleSubmit() {
   &:disabled
     opacity: 0.5
     cursor: not-allowed
+
+// SweetAlert2 dark theme styling
+:deep(.sweet-alert-dark)
+  background-color: #1a1a1a !important
+  border: 1px solid #333 !important
+
+:deep(.sweet-alert-title)
+  color: #ffffff !important
+  font-family: $font-family !important
+
+:deep(.sweet-alert-button)
+  font-family: $font-family !important
+  font-weight: 500 !important
+  padding: 0.75rem 2rem !important
+  border-radius: 8px !important
+  transition: all 0.3s ease !important
+  &:hover
+    transform: translateY(-2px) !important
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important
+
+:deep(.swal2-icon)
+  border-color: #4caf50 !important
+  color: #4caf50 !important
+
+:deep(.swal2-icon.swal2-error)
+  border-color: #f44336 !important
+  color: #f44336 !important
+
+:deep(.swal2-icon.swal2-error [class^=swal2-x-mark-line])
+  background-color: #f44336 !important
+
+:deep(.swal2-html-container)
+  color: #e0e0e0 !important
+  font-family: $font-family !important
 </style>
 

@@ -44,6 +44,7 @@
       side="right"
       overlay
       :width="250"
+      dark
       class="mobile-drawer"
     >
       <q-list class="mobile-menu-list">
