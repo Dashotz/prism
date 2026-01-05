@@ -13,6 +13,7 @@
     "dev": "quasar dev",
     "build": "quasar build",
     "vercel-build": "quasar build",
+    "build:prod": "NODE_ENV=production quasar build",
     "postinstall": "quasar prepare"
   },
   "dependencies": {
