@@ -26,11 +26,6 @@ export interface RegistrationResponse {
   error?: string;
 }
 
-export interface RegistrationsListResponse {
-  success: boolean;
-  data?: Registration[];
-  error?: string;
-}
 
 export const registrationService = {
   /**
@@ -143,33 +138,5 @@ export const registrationService = {
     }
   },
 
-  /**
-   * Get all registrations (for admin purposes)
-   */
-  async getAllRegistrations(): Promise<RegistrationsListResponse> {
-    try {
-      const { data, error } = await supabase
-        .from('registrations')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) {
-        return {
-          success: false,
-          error: 'Failed to fetch registrations. Please try again.',
-        };
-      }
-
-      return {
-        success: true,
-        data: data as Registration[],
-      };
-    } catch {
-      return {
-        success: false,
-        error: 'Failed to fetch registrations. Please try again.',
-      };
-    }
-  },
 };
 

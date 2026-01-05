@@ -46,15 +46,8 @@
               outlined
               dark
               class="form-input"
-              :rules="[(val) => {
-                const strVal = String(val || '').trim();
-                if (!strVal) return 'This field is required';
-                const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-                if (!emailRegex.test(strVal)) return 'Please enter a valid email address';
-                if (strVal.length > 255) return 'Email address is too long';
-                return true;
-              }]"
-              @update:model-value="(val) => formData.email = String(val || '').trim().toLowerCase().slice(0, 255)"
+              :rules="[validateEmailForQuasar]"
+              @update:model-value="(val) => (formData.email = sanitizeEmail(String(val || '')))"
             />
             <q-input
               v-model="formData.company"
@@ -63,7 +56,9 @@
               dark
               class="form-input"
               :rules="[(val) => validateText(val, 'Company', 200)]"
-              @update:model-value="(val) => formData.company = sanitizeText(String(val || ''), 200)"
+              @update:model-value="
+                (val) => (formData.company = sanitizeText(String(val || ''), 200))
+              "
             />
             <q-input
               v-model="formData.position"
@@ -72,25 +67,16 @@
               dark
               class="form-input"
               :rules="[(val) => validateText(val, 'Position', 200)]"
-              @update:model-value="(val) => formData.position = sanitizeText(String(val || ''), 200)"
+              @update:model-value="
+                (val) => (formData.position = sanitizeText(String(val || ''), 200))
+              "
             />
           </div>
         </div>
 
         <div class="form-buttons row q-gutter-md justify-center">
-          <q-btn
-            flat
-            class="back-btn"
-            @click="goBack"
-          >
-            BACK
-          </q-btn>
-          <q-btn
-            unelevated
-            class="submit-btn"
-            :disable="!isFormValid"
-            @click="handleSubmit"
-          >
+          <q-btn flat class="back-btn" @click="goBack"> BACK </q-btn>
+          <q-btn unelevated class="submit-btn" :disable="!isFormValid" @click="handleSubmit">
             SUBMIT
           </q-btn>
         </div>
@@ -102,10 +88,19 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { useQuasar } from 'quasar';
-import Swal from 'sweetalert2';
+import { useQuasar, Dialog } from 'quasar';
 import EventBranding from 'components/EventBranding.vue';
 import { registrationService } from 'src/services/registrationService';
+import {
+  validateName,
+  validateMobileNumber,
+  validateText,
+  validateEmailForQuasar,
+  sanitizeText,
+  sanitizeName,
+  sanitizeMobile,
+  sanitizeEmail,
+} from 'src/utils/validation';
 
 const router = useRouter();
 const $q = useQuasar();
@@ -119,82 +114,24 @@ const formData = ref({
   position: '',
 });
 
-// Validation rules
-const validateName = (val: string): boolean | string => {
-  if (!val) return 'This field is required';
-  const nameRegex = /^[A-Za-z\sñÑ-]+$/;
-  if (!nameRegex.test(val)) {
-    return 'Only letters, spaces, ñ, Ñ, and hyphens are allowed';
-  }
-  return true;
-};
-
-const validateMobileNumber = (val: string): boolean | string => {
-  if (!val) return 'This field is required';
-  const numberRegex = /^\d+$/;
-  if (!numberRegex.test(val)) {
-    return 'Only numbers are allowed';
-  }
-  if (val.length < 10 || val.length > 11) {
-    return 'Mobile number must be 10 or 11 digits';
-  }
-  return true;
-};
-
-const validateText = (val: string | number | null, fieldName: string, maxLength: number): boolean | string => {
-  const strVal = String(val || '').trim();
-  if (!strVal) return 'This field is required';
-  if (strVal.length > maxLength) return `${fieldName} must be less than ${maxLength} characters`;
-  // Allow letters, numbers, spaces, and common punctuation
-  const textRegex = /^[A-Za-z0-9\s.,\-'&()]+$/;
-  if (!textRegex.test(strVal)) {
-    return `${fieldName} contains invalid characters`;
-  }
-  return true;
-};
-
-const sanitizeText = (value: string, maxLength: number): string => {
-  // Remove potentially dangerous characters and limit length
-  return value.replace(/[<>"'`]/g, '').trim().slice(0, maxLength);
-};
-
-// Sanitization functions
+// Sanitization handlers
 const handleNameInput = (field: 'firstName' | 'lastName', value: string | number | null) => {
-  if (value === null || value === undefined) {
-    formData.value[field] = '';
-    return;
-  }
-  // Remove all characters except letters, spaces, ñ, Ñ, and hyphens
-  const sanitized = String(value).replace(/[^A-Za-z\sñÑ-]/g, '');
-  formData.value[field] = sanitized;
+  formData.value[field] = value === null || value === undefined ? '' : sanitizeName(String(value));
 };
 
 const handleMobileInput = (value: string | number | null) => {
-  if (value === null || value === undefined) {
-    formData.value.mobileNumber = '';
-    return;
-  }
-  // Remove all non-numeric characters
-  let sanitized = String(value).replace(/\D/g, '');
-  // Limit to 11 digits (max for Philippines)
-  if (sanitized.length > 11) {
-    sanitized = sanitized.slice(0, 11);
-  }
-  formData.value.mobileNumber = sanitized;
+  formData.value.mobileNumber =
+    value === null || value === undefined ? '' : sanitizeMobile(String(value));
 };
 
 const isFormValid = computed(() => {
-  const firstNameValid = formData.value.firstName && validateName(formData.value.firstName) === true;
-  const lastNameValid = formData.value.lastName && validateName(formData.value.lastName) === true;
-  const mobileValid = formData.value.mobileNumber && validateMobileNumber(formData.value.mobileNumber) === true;
-  
   return (
-    firstNameValid &&
-    lastNameValid &&
-    mobileValid &&
-    formData.value.email &&
-    formData.value.company &&
-    formData.value.position
+    validateName(formData.value.firstName) === true &&
+    validateName(formData.value.lastName) === true &&
+    validateMobileNumber(formData.value.mobileNumber) === true &&
+    validateEmailForQuasar(formData.value.email) === true &&
+    validateText(formData.value.company, 'Company', 200) === true &&
+    validateText(formData.value.position, 'Position', 200) === true
   );
 });
 
@@ -202,14 +139,25 @@ function goBack() {
   void router.push('/');
 }
 
+function showDialog(title: string, message: string, color: 'positive' | 'negative' = 'negative') {
+  Dialog.create({
+    title,
+    message,
+    class: 'qr-dialog-custom',
+    ok: {
+      label: 'OK',
+      color,
+    },
+  });
+}
+
 async function handleSubmit() {
   if (!isFormValid.value) {
     return;
   }
 
-  const loadingShown = $q && $q.loading;
   try {
-    if (loadingShown) {
+    if ($q && $q.loading) {
       $q.loading.show({
         message: 'Submitting registration...',
       });
@@ -225,60 +173,28 @@ async function handleSubmit() {
     });
 
     if (result.success && result.data) {
-      // Show success dialog with SweetAlert2
-      await Swal.fire({
-        title: 'Registration Successful!',
-        html: '<div style="text-align: center;"><p style="font-size: 1.1rem; margin-bottom: 0.5rem; color: #e0e0e0;">Your registration has been submitted successfully!</p><p style="color: #888; font-size: 0.9rem;">You will be redirected to the homepage.</p></div>',
-        icon: 'success',
-        confirmButtonText: 'Continue to Homepage',
-        confirmButtonColor: '#4caf50',
-        background: '#1a1a1a',
-        color: '#ffffff',
-        allowOutsideClick: false,
-        allowEscapeKey: false,
-        customClass: {
-          popup: 'sweet-alert-dark',
-          title: 'sweet-alert-title',
-          confirmButton: 'sweet-alert-button',
+      Dialog.create({
+        title: 'Registration Successful',
+        message: 'Your registration has been submitted successfully!',
+        class: 'qr-dialog-custom',
+        ok: {
+          label: 'OK',
+          color: 'positive',
         },
+      }).onOk(() => {
+        void router.push('/');
       });
-      // Redirect to homepage after user clicks OK
-      void router.push('/');
     } else {
-      const errorMsg = result.error || 'Registration failed. Please try again.';
-      console.error('Registration failed:', errorMsg);
-      await Swal.fire({
-        title: 'Registration Failed',
-        text: errorMsg,
-        icon: 'error',
-        confirmButtonText: 'OK',
-        confirmButtonColor: '#f44336',
-        background: '#1a1a1a',
-        color: '#ffffff',
-        customClass: {
-          popup: 'sweet-alert-dark',
-          title: 'sweet-alert-title',
-          confirmButton: 'sweet-alert-button',
-        },
-      });
+      showDialog('Registration Failed', result.error || 'Registration failed. Please try again.');
     }
-  } catch {
-    await Swal.fire({
-      title: 'Error',
-      text: 'An error occurred. Please try again later.',
-      icon: 'error',
-      confirmButtonText: 'OK',
-      confirmButtonColor: '#f44336',
-      background: '#1a1a1a',
-      color: '#ffffff',
-      customClass: {
-        popup: 'sweet-alert-dark',
-        title: 'sweet-alert-title',
-        confirmButton: 'sweet-alert-button',
-      },
-    });
+  } catch (error) {
+    console.error('Registration error:', error);
+    showDialog(
+      'Error',
+      error instanceof Error ? error.message : 'An error occurred. Please try again later.',
+    );
   } finally {
-    if (loadingShown && $q && $q.loading) {
+    if ($q && $q.loading) {
       $q.loading.hide();
     }
   }
@@ -344,39 +260,4 @@ async function handleSubmit() {
   &:disabled
     opacity: 0.5
     cursor: not-allowed
-
-// SweetAlert2 dark theme styling
-:deep(.sweet-alert-dark)
-  background-color: #1a1a1a !important
-  border: 1px solid #333 !important
-
-:deep(.sweet-alert-title)
-  color: #ffffff !important
-  font-family: $font-family !important
-
-:deep(.sweet-alert-button)
-  font-family: $font-family !important
-  font-weight: 500 !important
-  padding: 0.75rem 2rem !important
-  border-radius: 8px !important
-  transition: all 0.3s ease !important
-  &:hover
-    transform: translateY(-2px) !important
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important
-
-:deep(.swal2-icon)
-  border-color: #4caf50 !important
-  color: #4caf50 !important
-
-:deep(.swal2-icon.swal2-error)
-  border-color: #f44336 !important
-  color: #f44336 !important
-
-:deep(.swal2-icon.swal2-error [class^=swal2-x-mark-line])
-  background-color: #f44336 !important
-
-:deep(.swal2-html-container)
-  color: #e0e0e0 !important
-  font-family: $font-family !important
 </style>
-
