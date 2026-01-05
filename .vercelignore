@@ -1,0 +1,9 @@
+node_modules
+.quasar
+dist
+.vscode
+.idea
+*.log
+.env.local
+.env.*.local
+
