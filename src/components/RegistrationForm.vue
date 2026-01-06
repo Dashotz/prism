@@ -81,7 +81,7 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import QRCode from 'qrcode';
+import { toDataURL } from 'qrcode';
 import PrivacyPolicySection from 'components/PrivacyPolicySection.vue';
 import { registrationService } from 'src/services/registrationService';
 import { validateEmail } from 'src/utils/validation';
@@ -167,7 +167,7 @@ async function generateQRCode(data: RegistrationData) {
       company: data.company || 'N/A',
     });
 
-    qrCodeDataUrl.value = await QRCode.toDataURL(qrData, {
+    qrCodeDataUrl.value = await toDataURL(qrData, {
       width: 200,
       margin: 2,
       color: {

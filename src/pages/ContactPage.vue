@@ -76,9 +76,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useQuasar } from 'quasar';
-
-const $q = useQuasar();
+import { Notify } from 'quasar';
 
 const form = ref({
   name: '',
@@ -88,7 +86,7 @@ const form = ref({
 
 function onSubmit() {
   // TODO: Implement form submission
-  $q.notify({
+  Notify.create({
     message: 'Thank you for your message! We will get back to you soon.',
     color: 'positive',
     position: 'top',

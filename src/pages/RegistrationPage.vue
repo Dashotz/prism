@@ -88,7 +88,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { useQuasar, Dialog } from 'quasar';
+import { Dialog } from 'quasar';
 import EventBranding from 'components/EventBranding.vue';
 import { registrationService } from 'src/services/registrationService';
 import {
@@ -103,7 +103,6 @@ import {
 } from 'src/utils/validation';
 
 const router = useRouter();
-const $q = useQuasar();
 
 const formData = ref({
   firstName: '',
@@ -116,24 +115,21 @@ const formData = ref({
 
 // Sanitization handlers
 const handleNameInput = (field: 'firstName' | 'lastName', value: string | number | null) => {
-  formData.value[field] = value === null || value === undefined ? '' : sanitizeName(String(value));
+  formData.value[field] = sanitizeName(String(value ?? ''));
 };
 
 const handleMobileInput = (value: string | number | null) => {
-  formData.value.mobileNumber =
-    value === null || value === undefined ? '' : sanitizeMobile(String(value));
+  formData.value.mobileNumber = sanitizeMobile(String(value ?? ''));
 };
 
-const isFormValid = computed(() => {
-  return (
-    validateName(formData.value.firstName) === true &&
-    validateName(formData.value.lastName) === true &&
-    validateMobileNumber(formData.value.mobileNumber) === true &&
-    validateEmailForQuasar(formData.value.email) === true &&
-    validateText(formData.value.company, 'Company', 200) === true &&
-    validateText(formData.value.position, 'Position', 200) === true
-  );
-});
+const isFormValid = computed(() =>
+  validateName(formData.value.firstName) === true &&
+  validateName(formData.value.lastName) === true &&
+  validateMobileNumber(formData.value.mobileNumber) === true &&
+  validateEmailForQuasar(formData.value.email) === true &&
+  validateText(formData.value.company, 'Company', 200) === true &&
+  validateText(formData.value.position, 'Position', 200) === true
+);
 
 function goBack() {
   void router.push('/');
@@ -157,20 +153,7 @@ async function handleSubmit() {
   }
 
   try {
-    if ($q && $q.loading) {
-      $q.loading.show({
-        message: 'Submitting registration...',
-      });
-    }
-
-    const result = await registrationService.createRegistration({
-      firstName: formData.value.firstName,
-      lastName: formData.value.lastName,
-      mobileNumber: formData.value.mobileNumber,
-      email: formData.value.email,
-      company: formData.value.company,
-      position: formData.value.position,
-    });
+    const result = await registrationService.createRegistration(formData.value);
 
     if (result.success && result.data) {
       Dialog.create({
@@ -193,10 +176,6 @@ async function handleSubmit() {
       'Error',
       error instanceof Error ? error.message : 'An error occurred. Please try again later.',
     );
-  } finally {
-    if ($q && $q.loading) {
-      $q.loading.hide();
-    }
   }
 }
 </script>

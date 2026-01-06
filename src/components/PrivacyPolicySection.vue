@@ -17,7 +17,7 @@
 </template>
 
 <script setup lang="ts">
-import { useQuasar } from 'quasar';
+import { Notify } from 'quasar';
 
 defineProps<{
   modelValue: boolean;
@@ -27,11 +27,9 @@ defineEmits<{
   'update:modelValue': [value: boolean];
 }>();
 
-const $q = useQuasar();
-
 function openPrivacyPolicy() {
   // TODO: Implement privacy policy modal/page
-  $q.notify({
+  Notify.create({
     message: 'Privacy Policy will be displayed here',
     color: 'info',
   });
